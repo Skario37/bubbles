@@ -40,6 +40,7 @@ const AREAS =  {
       t = t || 18;
       s = s || 10;
       return 1000-0.12*t+0.35*s;
+      //return (p*WATER_MOLAR_MASS) / (IDEAL_GAS*(t + KELVIN))
     },
     "temperature": 18,
     "salinity": 10,
@@ -92,8 +93,12 @@ class Engine {
 
   createBubble = (n, s) => {
     for (let i = 0; i < n; i++) {
-      this._bubbles.push(new Bubble(this._ctx, this._width, this._height, s));
-      if (this._area.type === AIR) this._bubbles[i].setColor("#ff0000");
+      if (this._area.type === AIR) {
+        this._bubbles.push(new Bubble(this._ctx, this._width, 0, s));
+        this._bubbles[i].setColor("#ff0000");
+      } else if (this._area.type === WATER) {
+        this._bubbles.push(new Bubble(this._ctx, this._width, this._height, s));
+      }
     }
   }
 
@@ -118,14 +123,15 @@ class Engine {
     for (let i = 0; i < this._bubbles.length; i++) {
       const pos = this._bubbles[i].getPosition();
       const bubble_volume = this._bubbles[i].getSurface();
+      const bubble_radius = convertPixelToMeter(this._bubbles[i].getRadius());
       
-      const bubble_density = AREAS.air.density() * 0.999 + AREAS.water.density() * 0.001;
+      const bubble_density = AREAS.air.density() * 0.9999 + AREAS.water.density() * 0.0001;
       const g_force = bubble_density * bubble_volume * GRAVITY_EARTH;
 
       const area_density = this._area.density();
       const p_force = area_density * bubble_volume * GRAVITY_EARTH;
 
-      pos.y += convertMeterToPixel(g_force - p_force) / 1000;
+      pos.y += convertMeterToPixel(g_force - p_force);
 
       // frottement = -6pi*r*v
 
@@ -138,7 +144,7 @@ class Engine {
   _detectCollision = (i) => {
     const pos = this._bubbles[i].getPosition();
     const radius = this._bubbles[i].getRadius();
-    if (pos.y + radius <= 0 || pos.y + radius >= this._height) {
+    if (pos.y + radius <= 0 || pos.y + radius >= this._height / 2) {
       // pop it
       this._bubbles[i].create();
     }
@@ -171,7 +177,7 @@ class Bubble {
     this._projection_center_x = this._width / 2;
     this._projection_center_y = this._height / 2;
 
-    this._radius = (Math.floor(Math.random() * (this._size - 6)) + 7) / 2;
+    this._radius = Math.floor(Math.random() * ((this._size + 5) - (this._size - 5)) + this._size - 5) / 2;
     this._x = (Math.random() - 0.5) * this._width + this._radius;
     this._y = this._height / 2 + this._radius;
     this._z = Math.random() * this._width;
@@ -249,10 +255,10 @@ function render(callback) {
 
 window.onload = () => {
   const air_engine = new Engine(document.getElementById("air"), undefined, undefined, "air");
-  air_engine.createBubble(20, 300);
+  air_engine.createBubble(20, 80);
 
   const water_engine = new Engine(document.getElementById("water"), undefined, undefined, "water");
-  water_engine.createBubble(20, 300);
+  water_engine.createBubble(20, 10);
 
   window.requestAnimationFrame(() => {
     render(() => {
